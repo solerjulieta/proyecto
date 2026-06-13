@@ -1,14 +1,13 @@
 import express from 'express'
-import http from 'http'
+import eventsRouter from './src/routes/events.routes.js'
+import sessionsRouter from './src/routes/sessions.routes.js'
 
 const app = express()
-const server = http.createServer(app)
 
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
-const port = 8080
+app.use('/api/events', eventsRouter)
+app.use('/api/sessions', sessionsRouter)
 
-server.listen(port, () => {
-    console.log(`Servidor iniciado http://localhost:${port}`)
-})
+export default app
