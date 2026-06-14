@@ -1,6 +1,5 @@
-export default class EventDAO 
-{
-    async getAll(){
-        return []
-    }
+export default class EventDAO {
+  async getAll() {
+    return []
+  }
 }
