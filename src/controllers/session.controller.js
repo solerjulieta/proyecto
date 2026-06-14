@@ -1,19 +1,15 @@
-import SessionService from '../services/session.services.js'
-
-const sessionService = new SessionService()
+import { registerUser } from '../services/user.services.js'
 
 export const register = async (req, res) => {
   try {
-    const newUser = await sessionService.registerUser(req.body)
-    res
-      .status(501)
-      .json({ status: 'pending', message: 'Registro no implementado aún.', payload: newUser })
+    const newUser = await registerUser(req.body)
+    res.status(201).json({ status: 'success', payload: newUser })
   } catch (error) {
-    console.error('Error en register:', error.message)
-    res.status(500).json({ status: 'error', message: error.message })
+    const status = error.status || 500
+    res.status(status).json({ status: 'error', message: error.message })
   }
 }
-
+/*
 export const login = async (req, res) => {
   try {
     const user = await sessionService.loginUser(req.body)
@@ -25,3 +21,4 @@ export const login = async (req, res) => {
     res.status(500).json({ status: 'error', message: error.message })
   }
 }
+*/
