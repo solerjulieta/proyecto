@@ -1,5 +1,8 @@
 import { NODE_ENV } from '../config/env.js'
-import { registerUser, loginUser } from '../services/user.services.js'
+import { registerUser } from '../services/user.services.js'
+//import SessionService from '../services/session.services.js'
+
+//const sessionService = new SessionService()
 
 export const register = async (req, res) => {
   try {
@@ -13,7 +16,7 @@ export const register = async (req, res) => {
 
 export const login = async (req, res) => {
   try {
-    const token = await loginUser(req.body)
+    //const token = await sessionService.loginUser(req.body)
 
     res.cookie('currentUser', token, {
       httpOnly: true,
@@ -22,7 +25,7 @@ export const login = async (req, res) => {
       secure: NODE_ENV === 'production'
     })
 
-    res.status(200).json({ status: 'error', message: 'Login exitoso.' })
+    res.status(200).json({ status: 'success', message: 'Login exitoso.' })
   } catch (error) {
     console.error('Error en login:', error.message)
     res.status(500).json({ status: 'error', message: error.message })
@@ -37,6 +40,6 @@ export const current = (req, res) =>
 
 export const logout = (req, res) => 
 {
-  res.clearCokie('currentUser')
+  res.clearCookie('currentUser')
   res.status(200).json({ status: 'success', message: 'Sesión cerrada correctamente.' })
 }
