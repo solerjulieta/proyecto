@@ -98,7 +98,7 @@ role       | String | Por defecto 'user', valores posibles: 'user', 'organizer',
 
 - `first_name`, `last_name`, `email` y `password` son obligatorios.
 - `email` debe tener un formato válido.
-- `password` debe cumplir con la longitud mínima requerida (8 caracteres).
+- `password` debe cumplir con la longitud mínima requerida (6 caracteres).
 - El `email` se normaliza (trim + lowercase) antes de guardarse.
 - Si el `email` ya está registrado, se rechaza la solicitud.
 - La contraseña se almacena hasheada con `bcrypt` (helper en `utils/`).
