@@ -1,9 +1,11 @@
+import User from '../models/user.model.js'
+
 export default class SessionDAO {
   async findByEmail(email) {
-    return null
+    return await User.findOne({ email })
   }
 
   async create(userData) {
-    return userData
+    return await User.create(userData)
   }
 }
