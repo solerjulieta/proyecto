@@ -2,7 +2,7 @@
 
 ## Temática
 
-API REST para gestión de eventos y sus inscripciones. Esta entrega implementa autenticación de usuarios con JWT y cookies HTTP Only: registro, login, ruta protegida /current y logout.
+API REST para gestión de eventos y sus inscripciones. Esta entrega implementa autenticación centralizada con Passport.js: registro, login, ruta protegida /current y logout, usando JWT almacenado en cookies HTTP Only.
 
 ## Tecnologías
 
@@ -14,6 +14,9 @@ API REST para gestión de eventos y sus inscripciones. Esta entrega implementa a
 - bcrypt
 - jsonwebtoken
 - cookie-parser
+- passport
+- passport-local
+- passport-jwt
 
 ## Instalación
 
@@ -51,15 +54,16 @@ El servidor corre en http://localhost:8080 (o el puerto definido en PORT).
 
 \`\`\`
 src/
-├── config/       # Configuración (variables de entorno)
+├── config/       # Configuración (variables de entorno, MongoDB, Passport)
 ├── routes/       # Definición de rutas
 ├── controllers/  # Lógica de manejo de requests
 ├── services/     # Lógica de negocio
 ├── repositories/ # Abstracción de acceso a datos
 ├── dao/          # Acceso a datos con Mongoose
 ├── models/       # Modelos (User, Event)
-├── middlewares/  # Middlewares personalizados (auth)
-└── utils/        # Utilidades (hash de contraseñas, JWT.)
+├── middlewares/  # Middlewares personalizados (passport.middleware.js)
+├── dto/          # Data Transfer Objects (CurrentUserDTO)
+└── utils/        # Utilidades (hash.js, jwt.js)
 \`\`\`
 
 ## Rutas disponibles
@@ -69,7 +73,7 @@ GET    | /api/health            | Estado del servidor                | No
 GET    | /api/events            | Lista de eventos (vacía por ahora) | No
 POST   | /api/sessions/register | Registro de usuarios               | No
 POST   | /api/sessions/login    | Login, genera JWT y cookie         | No
-GET    | /api/sessions/current  | Usuario autenticado actual         | Sí (cookie)
+GET    | /api/sessions/current  | Usuario autenticado actual         | Sí (estrategia JWT de Passport)
 POST   | /api/sessions/logout   | Cierra sesión, elimina cookie      | No
 
 ## Modelo User
@@ -83,6 +87,8 @@ role       | String | Por defecto 'user', valores posibles: 'user', 'organizer',
 
 ## Registro de usuarios - `POST /api/sessions/register`
 
+Gestionado por la estrategia `register` de Passport (LocalStrategy)
+
 ### Body esperado (JSON)
 
 \`\`\`json
@@ -90,7 +96,7 @@ role       | String | Por defecto 'user', valores posibles: 'user', 'organizer',
   "first_name": "Juan",
   "last_name": "Pérez",
   "email": "juan.perez@example.com",
-  "password": "minimo8caracteres"
+  "password": "minimo6caracteres"
 }
 \`\`\`
 
@@ -101,8 +107,9 @@ role       | String | Por defecto 'user', valores posibles: 'user', 'organizer',
 - `password` debe cumplir con la longitud mínima requerida (6 caracteres).
 - El `email` se normaliza (trim + lowercase) antes de guardarse.
 - Si el `email` ya está registrado, se rechaza la solicitud.
-- La contraseña se almacena hasheada con `bcrypt` (helper en `utils/`).
+- La contraseña se almacena hasheada con `bcrypt` (helper en `utils/hash.js`).
 - La respuesta nunca incluye el campo `password`, ni en texto plano ni hasheado.
+- El `role` enviado en el body es ignorado - siempre se asigna `'user'`
 
 ### Respuestas
 
@@ -126,7 +133,7 @@ role       | String | Por defecto 'user', valores posibles: 'user', 'organizer',
 \`\`\`json
 {
   "status": "error",
-  "message": "El email proporcionado no es válido"
+  "message": "El formato del email es inválido."
 }
 \`\`\`
 
@@ -135,7 +142,7 @@ role       | String | Por defecto 'user', valores posibles: 'user', 'organizer',
 \`\`\`json
 {
   "status": "error",
-  "message": "El email ya se encuentra registrado"
+  "message": "Ya existe un usuario registrado con este email."
 }
 \`\`\`
 
@@ -161,7 +168,7 @@ curl -X POST http://localhost:8080/api/sessions/register \
     "first_name": "Juan",
     "last_name": "Pérez",
     "email": "juan.perez@example.com",
-    "password": "minimo8caracteres"
+    "password": "minimo6caracteres"
   }'
 \`\`\`
 
@@ -170,21 +177,21 @@ También se puede probar con Postman, Insomnia o Thunder Client, usando el mismo
 
 ## Login - `POST /api/sessions/login`
 
-Autentica al usuario, genera un JWT y lo guarda en una cookie httpOnly.
+Gestionado por la estrategia `login` de Passport (LocalStrategy). Tras la autenticación exitosa, el controller (no Passport) genera el JWT y setea la cookie.
 
 ### Body esperado (JSON)
 
 \`\`\`json
 {
   "email": "juan.perez@example.com",
-  "password": "minimo8caracteres"
+  "password": "minimo6caracteres"
 }
 \`\`\`
 
 ### Validaciones
 
 - `email` y `password` son obligatorios.
-- Busca el usuario por email y compara la contraseña con bcrypt
+- Busca el usuario por email y compara la contraseña con bcrypt.
 - Si el email no existe o la contraseña no coincide, responde siempre el mismo mensaje genérico `Credenciales inválidas` - no se especifica cuál de los dos falló, por seguridad.
 - Si las credenciales son correctas, genera un JWT firmado con JWT_SECRET, con payload `{ id, email, role }` y expiración configurable (`JWT_EXPIRES_IN`).
 - El token se guarda en una cookie llamada `currentUser` con las siguientes opciones:
@@ -215,7 +222,7 @@ Autentica al usuario, genera un JWT y lo guarda en una cookie httpOnly.
 }
 \`\`\`
 
-**404 Bad Request** — Campos faltantes
+**400 Bad Request** — Campos faltantes
 
 \`\`\`json
 {
@@ -230,26 +237,34 @@ Con el servidor corriendo, enviar una petición `POST` a `http://localhost:8080/
 
 En Postman: asegurarse de que "Send cookies" esté habilitado en la pestaña Settings para que la cookie persista entre requests.
 
-## Login - `GET /api/sessions/current`
+**Ejemplo con cURL:**
 
-Ruta protegida. Requiere la cookie `currentUser` generada en el login.
+\`\`\`bash
+curl -X POST http://localhost:8080/api/sessions/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "juan.perez@example.com",
+    "password": "minimo6caracteres"
+  }'
+\`\`\`
 
-### Middleware auth
+En Postman: asegurarse de que "Send cookies" esté habilitado en Settings para que la cookie persista entre requests.
 
-- Lee el token desde la cookie `currentUser`
-- Verifica que sea válido y no haya expirado.
-- Si es válido, guarda el payload decodificado en req.user y continúa al controller.
-- Si no hay cookie o el token es inválido/expirado, responde 401 sin llegar al controller.
+## Usuario actual - `GET /api/sessions/current`
+
+Ruta protegida por la estrategia `current` de Passport (JwtStrategy). Lee el token desde la cookie `currentUser`, lo verifica y deja el payload en `req.user`.
 
 ### Respuestas
 
-**200 OK** — Usuario autenticado
+**200 OK** — Usuario autenticado (nunca incluye `password`)
 
 \`\`\`json
 {
   "status": "success",
   "payload": {
     "id": "65f1a2b3c4d5e6f7g8h9i0j1",
+    "first_name": "Juan",
+    "last_name": "Pérez",
     "email": "juan.perez@example.com",
     "role": "user"
   }
@@ -257,6 +272,15 @@ Ruta protegida. Requiere la cookie `currentUser` generada en el login.
 \`\`\`
 
 (nunca incluye password)
+
+**401 Unauthorized** — Sin cookie
+
+\`\`\`json
+{
+  "status": "error",
+  "message": "No autenticado."
+}
+\`\`\`
 
 **401 Unauthorized** — Token inválido o expirado
 
@@ -271,13 +295,13 @@ Ruta protegida. Requiere la cookie `currentUser` generada en el login.
 
 Con el servidor corriendo, enviar una petición `GET` a `http://localhost:8080/api/sessions/current` con `Content-Type: application/json`.
 
-## Login - `POST /api/sessions/login`
+## Logout - `POST /api/sessions/logout`
 
-Elimina la cookie `currentUser`, cerrando la sesión.
+Elimina la cookie `currentUser`. No requiere pasar por Passport.
 
 ### Respuestas
 
-**200 OK** — Usuario autenticado
+**200 OK** 
 
 \`\`\`json
 {
@@ -292,13 +316,22 @@ Con el servidor corriendo, enviar una petición `POST` a `http://localhost:8080/
 
 Después del logout, un nuevo GET /api/sessions/current con la misma cookie debe responder 401.
 
+## Flujo completo de prueba
+
+1. POST /api/sessions/register  → 201, usuario creado sin password en respuesta
+2. POST /api/sessions/login     → 200, cookie currentUser seteada
+3. GET  /api/sessions/current   → 200, devuelve { id, first_name, last_name, email, role }
+4. POST /api/sessions/logout    → 200, cookie eliminada
+5. GET  /api/sessions/current   → 401, "No autenticado."
+
 ## Casos validados
+
 1. Registro exitoso con datos válidos → 201.
 2. Campos faltantes (first_name, last_name, email o password) → 400.
 3. Email con formato inválido → 400.
 4. Email ya registrado → 409.
 5. La contraseña se guarda hasheada en MongoDB (nunca en texto plano).
-6. La respuesta del registro no incluye el campo password en ningún caso.
+6. La respuesta del registro no incluye el campo `password` en ningún caso.
 7. Login exitoso → genera cookie con JWT.
 8. Login con email inexistente → 401, mensaje genérico.
 9. Login con contraseña incorrecta → 401, mismo mensaje genérico.
@@ -311,19 +344,27 @@ Después del logout, un nuevo GET /api/sessions/current con la misma cookie debe
 El flujo de la lógica sigue el patrón en capas:
 
 \`\`\`
-ruta → controller → service → repository -> dao → modelo
+ruta → passport.middleware -> passport.config (estrategia) → service → repository -> dao → modelo -> controller (HTTP + cookie)
 \`\`\`
 
-- **routes**: define el endpoint y delega al controller.
-- **controllers**: maneja `req`/`res`, llama al service y formatea la respuesta HTTP.
-- **services**: contiene la lógica de negocio (validaciones, normalización, hash, generación de JWT).
+- **routes**: define el endpoint, delega en `passportAuth()` y luego al controller.
+- **passport.config.js**: centraliza las tres estrategias (`register`, `login`, `current`). No genera JWT - eso le corresponde al controller.
+- **passport.middleware.js**: envuelve `passport.authenticate()` con manejo de errores en formatos JSON.
+- **controllers**: maneja `req`/`res`, setea la cookie y formatea la respuesta HTTP.
+- **services**: lógica de negocio (validaciones, normalización, hash, generación de JWT).
 - **repository**: abstrae el acceso a datos, delega al DAO.
 - **dao**: interactúa directamente con Mongoose/MongoDB.
 - **models**: define el esquema `User` con Mongoose.
-- **middlewares**: `auth.middleware.js` valida el JWT de la cookie antes de rutas protegidas.
+- **dto/current-user.dto.js**: `CurrentUserDTO` - garantiza que `password` nunca se incluya en ninguna respuesta.
 - **utils**: 
-  - `hash.js` - hash y comparación de contraseñas con brypt.
+  - `hash.js` - hash y comparación de contraseñas con `brypt`.
   - `jwt.js` - generación y verificación de tokens JWT.
+
+## Preparación para futuras estrategias
+
+El archivo `passport.config.js` está estructurado para agregar nuevas estrategias sin modificar `app.js`. Por ejemplo, autenticación con proveedores externos.
+
+El sistema queda preparado para incorporar providers externos como Google, GitHub u otros proveedores OAuth en futuras entregas, sin impacto en las rutas ni en `app.js`.
 
 ## Seguridad
 
@@ -333,6 +374,7 @@ ruta → controller → service → repository -> dao → modelo
 - La cookie `currentUser` es `httpOnly`, no accesible desde JavaScript del cliente (protección contra XSS).
 - Los mensajes de error de login son genéricos (`"Credenciales inválidas."`) para no revelar si el email existe o no.
 - `JWT_SECRET` se carga desde variables de entorno, nunca hardcodeado en el código.
+- `CurrentUserDTO` garantiza por diseño que `password` nunca aparece en ninguna respuesta.
 
 ## Calidad de código y testing
 
