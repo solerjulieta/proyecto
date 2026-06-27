@@ -1,7 +1,9 @@
 import { NODE_ENV } from '../config/env.js'
+import { CurrentUserDTO } from '../dto/current-user.dto.js'
 
 export const register = async (req, res) => {
-  res.status(201).json({ status: 'success', payload: req.user })
+  const userDTO = new CurrentUserDTO(req.user)
+  res.status(201).json({ status: 'success', payload: userDTO })
 }
 
 export const login = async (req, res) => {
@@ -19,8 +21,8 @@ export const login = async (req, res) => {
 
 export const current = (req, res) => 
 {
-  const { id, email, role } = req.user
-  res.status(200).json({ status: 'success', payload: { id, email, role } })
+  const userDTO = new CurrentUserDTO(req.user)
+  res.status(200).json({ status: 'success', payload: userDTO })
 }
 
 export const logout = (req, res) => 
