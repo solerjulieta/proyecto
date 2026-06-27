@@ -46,7 +46,9 @@ passport.use('login', new LocalStrategy(
 ))
 
 const cookieExtractor = (req) => {
-    return req?.cookies?.currentUser || null
+    const token = req?.cookies?.currentUser || null
+    console.log('Cookie recibida', token)
+    return token
 }
 
 passport.use('current', new JwtStrategy(

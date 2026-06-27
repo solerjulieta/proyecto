@@ -7,7 +7,7 @@ export const register = async (req, res) => {
 }
 
 export const login = async (req, res) => {
-  const token = req.user
+  const { token } = req.user
 
   res.cookie('currentUser', token, {
     httpOnly: true,
