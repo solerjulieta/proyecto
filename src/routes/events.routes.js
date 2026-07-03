@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { getEvents } from '../controllers/event.controller.js'
 import passport from 'passport'
-import { authorizeRoles } from '../middlewares/authorizeRoles.middleware.js'
+import { authorize } from '../middlewares/authorize.middleware.js'
 
 const router = Router()
 
@@ -11,7 +11,7 @@ router.post(
     passport.authenticate('current', {
         session: false
     }),
-    authorizeRoles('admin', 'organizar'),
+    authorize('admin', 'organizar'),
     createEvent
 )
 
