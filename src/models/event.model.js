@@ -7,6 +7,7 @@ const eventSchema = new mongoose.Schema(
       date:        { type: Date, required: true },
       location:    { type: String, required: true },
       capacity:    { type: Number, required: true },
+      status:      { type: String, enum: ['published', 'cancelled'], default: 'published' },
       organizer:   { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }
     },
     { timestamps: true }
