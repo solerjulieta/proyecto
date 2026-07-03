@@ -8,4 +8,8 @@ export default class SessionDAO {
   async create(userData) {
     return await User.create(userData)
   }
+
+  async getAll(){
+    return await User.find({}, { password: 0 })
+  }
 }
