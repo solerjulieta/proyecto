@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { getEvents, createEventHandler, updateEventHandler, deleteEventHandler, getAllUsers } from '../controllers/event.controller.js'
 import passport from 'passport'
 import { authorize } from '../middlewares/authorize.middleware.js'
+import { isEventOwnerOrAdmin } from '../middlewares/event.middleware.js'
 
 const router = Router()
 
@@ -22,6 +23,7 @@ router.put(
         session: false
     }),
     authorize('admin', 'organizer'),
+    isEventOwnerOrAdmin,
     updateEventHandler
 )
 
@@ -31,6 +33,7 @@ router.delete(
         session: false
     }),
     authorize('admin', 'organizer'),
+    isEventOwnerOrAdmin,
     deleteEventHandler
 )
 
