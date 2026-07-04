@@ -9,7 +9,7 @@ const router = Router()
 router.get('/', getEvents)
 
 router.post(
-    'events',
+    '/',
     passport.authenticate('current', {
         session: false
     }),

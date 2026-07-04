@@ -1,5 +1,6 @@
 import { getAllEvents, createEvent, updateEvent, deleteEvent } from '../services/event.services.js'
-import UserDAO from '../dao/user.dao.js'
+import SessionDAO from '../dao/session.dao.js'
+const sessionDAO = new SessionDAO()
 
 export const getEvents = async (req, res) => {
   try {
@@ -39,7 +40,7 @@ export const deleteEventHandler = async (req, res) => {
 
 export const getAllUsers = async (req, res) => {
   try {
-    const users = await UserDAO.getAll()
+    const users = await sessionDAO.getAll()
     res.status(200).json({ status: 'success', payload: users })
   } catch (error) {
     res.status(500).json({ status: 'error', message: error.message })
