@@ -2,11 +2,13 @@ import mongoose from 'mongoose'
 
 const eventSchema = new mongoose.Schema(
     {
-      title:       { type: String, required: true },
-      description: { type: String, required: true },
+      title:       { type: String, required: true, trim: true },
+      description: { type: String, required: true, trim: true },
+      /*category:    { type: mongoose.Schema.Types.ObjectId, ref: 'Category', required: true },*/
       date:        { type: Date, required: true },
-      location:    { type: String, required: true },
-      capacity:    { type: Number, required: true },
+      location:    { type: String, required: true, trim: true },
+      capacity:    { type: Number, required: true, min: 1 },
+      /*price:       { type: Number, default: 0, min: 0 },*/
       status:      { type: String, enum: ['published', 'cancelled'], default: 'published' },
       organizer:   { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }
     },

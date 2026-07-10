@@ -4,7 +4,12 @@ const sessionDAO = new SessionDAO()
 
 export const getEvents = async (req, res) => {
   try {
-    const events = await getAllEvents()
+    const { category, status, location } = req.query
+    const filter = {}
+    if(category) filter.category = category 
+    if(status) filter.status = status
+    if(location) filter.location = location
+    const events = await getAllEvents(filter)
     res.status(200).json({ status: 'success', payload: events })
   } catch (error) {
     res.status(error.status || 500).json({ status: 'error', message: error.message })
