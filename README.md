@@ -2,7 +2,7 @@
 
 ## Temática
 
-API REST para gestión de eventos y sus inscripciones con sistema de autorización por roles. Implementa autenticación con JWT y cookies HTTP Only, Passport.js para centralizar estrategias de autenticación, y control de acceso basado en roles (user, organizer, admin).
+API REST para gestión de eventos e inscripciones con sistema de autorización por roles. Implementa autenticación con JWT y cookies HTTP Only, Passport.js para centralizar estrategias de autenticación, control de acceso basado en roles y CRUD completo de eventos con validaciones de negocio, filtros, paginación y ordenamiento.
 
 ## Tecnologías
 
@@ -38,6 +38,11 @@ JWT_EXPIRES_IN=1h
 NODE_ENV=development
 \`\`\`
 
+> `JWT_SECRET` debe ser una cadena larga y aleatoria. Se puede generar con:
+> ```bash
+> node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+> ```
+
 ## Ejecución
 
 \`\`\`bash
@@ -57,11 +62,11 @@ src/
 ├── config/       # Configuración (variables de entorno, MongoDB, Passport)
 ├── routes/       # Definición de rutas
 ├── controllers/  # Lógica de manejo de requests
-├── services/     # Lógica de negocio
+├── services/     # Lógica de negocio y validaciones
 ├── repositories/ # Abstracción de acceso a datos
 ├── dao/          # Acceso a datos con Mongoose
 ├── models/       # Modelos (User, Event)
-├── middlewares/  # auth, authorize, event, passport
+├── middlewares/  # auth, authorize, isEventOwnerOrAdmin, passport
 ├── dto/          # Data Transfer Objects (CurrentUserDTO)
 └── utils/        # Utilidades (hash.js, jwt.js)
 \`\`\`
@@ -73,7 +78,7 @@ user      | Rol por defecto al registrarse. Solo puede consultar eventos publica
 organizer | Puede crear eventos y modificar/cancelar los suyos propios. 
 admin     | Acceso total. Puede modificar cualquier evento y ver todos los usuarios. 
 
-El registro público siempre asigna `role: "user"`. No es posible crear un `organizer` o `admin` desde el endpoint de registro.
+> El registro público siempre asigna `role: "user"`. No es posible crear un `organizer` o `admin` desde el endpoint de registro.
 
 ## Matriz de permisos
 
@@ -99,8 +104,10 @@ POST   | /api/sessions/login     | Login, genera JWT y cookie         | No      
 GET    | /api/sessions/current   | Usuario autenticado actual         | Sí                             | Cualquier rol
 POST   | /api/sessions/logout    | Cierra sesión, elimina cookie      | No                             | -
 GET    | /api/events             | Lista de eventos                   | No                             | -
+GET    | /api/events/:id         | Detalle de un evento               | No                             | -
 POST   | /api/events             | Crear evento                       | Sí                             | `organizer`, `admin`
 PUT    | /api/events/:id         | Modificar evento                   | Sí                             | `organizer` (solo propios), `admin`
+PATCH  | /api/events/:id/status  | Cambiar estado del evento          | Sí                             | `organizer` (solo propios), `admin`
 DELETE | /api/events/:id         | Cancelar evento                    | Sí                             | `organizer` (solo propios), `admin`
 GET    | /api/events/admin/users | Ver todos los usuarios             | Sí                             | `admin`
 
@@ -141,11 +148,13 @@ role       | String | Por defecto 'user', valores posibles: 'user', 'organizer',
 Campo       | Tipo     | Detalle
 title       | String   | Requerido
 description | String   | Requerido
-date        | Date     | Requerido
+category    | String   | Requerido
+date        | Date     | Requerido. No puede ser una fecha pasada
 location    | String   | Requerido
-capacity    | Number   | Requerido
-status      | String   | `published` o `cancelled`. Default `published`
-organizer   | ObjectId | Referencia al `User` que creó el evento. Requerido.
+capacity    | Number   | Requerido. Debe ser mayor a 0
+price       | Number   | Requerido. No puede ser negativo
+status      | String   | `draft`, `published`, `cancelled`, `finished`. Default `published`
+organizer   | ObjectId | Referencia al `User` que creó el evento. Se asigna automáticamente desde `req.user`
 
 ## Registro de usuarios - `POST /api/sessions/register`
 
@@ -381,87 +390,175 @@ Después del logout, un nuevo GET /api/sessions/current con la misma cookie debe
 ## Endpoints de eventos
 
 Ver eventos `GET /api/events`
-Pública. Devuelve todos los eventos con `status: 'published'`.
+Pública. Soporta filtros, paginación y ordenamiento.
+
+## Query params disponibles: 
+
+Parámetro  | Tipo   | Descripción                              | Ejemplo
+`status`   | String | Filtra por estado (case insensitive)     | `?status=published`
+`category` | String | Filtra por categoría (case insensitive)  | `?category=workshop`
+`location` | String | Filtra por ubicación (case insensitive)  | `?location=córdoba`
+`dateFrom` | Date   | Filtra eventos desde esta fecha          | `?dateFrom=2026-01-01`
+`dateTo`   | Date   | Filtra eventos hasta esta fecha          | `?dateTo=2026-12-31`
+`page`     | Number | Página actual (default: 1)               | `?page=2`
+`limit`    | Number | Resultados por página (default: 10)      | `?limit=5`
+`sort`     | String | Campo por el que ordenar (default: date) | `?sort=date`
+
+## Ejemplo de request con filtros: 
+
+\`\`\`
+GET /api/events?status=published&category=workshop&page=2&limit=5
+GET /api/events?dateFrom=2026-01-01&dateTo=2026-12-31$sort=date
+\`\`\`
 
 ## 200 OK 
 
 {
   "status": "success",
-  "payload": [...]
+  "data": [...],
+  "page": 2,
+  "limit": 5,
+  "total": 23,
+  "totalPages": 5
 }
+
+## Detalle de evento - `GET /api/events/:id`
+
+Pública.
+
+## **200 OK:** evento con datos del organizer (sin password) | **404:** evento no encontrado
+
+--
 
 ## Crear evento - `POST /api/events`
 
-Requiere autenticación y rol `organizer` o `admin`. El `organizer` del evento se asigna automáticamente desde el req.user.id
+Requiere autenticación y rol `organizer` o `admin`. El `organizer` del evento se asigna automáticamente desde el req.user.id - no puede venir del body.
 
 {
   "title": "Festival de Música 2026",
   "description": "Festival al aire libre con bandas locales",
+  "category": "festival",
   "date": "2026-09-15T18:00:00.000Z",
   "location": "Parque Sarmiento, Córdoba",
-  "capacity": 500
+  "capacity": 500,
+  "price": 1500
 }
 
-201 Created: evento creado | 401: sin sesión | 403: rol insuficiente
+**201 Created:** evento creado con `status: 'draft'` por defecto
+
+**400:** validación fallida | **401:**: sin sesión | **403:** rol insuficiente
+
+--
 
 ## Modificar evento `PUT /api/events/:id`
 
-Requiere autenticación y rol `organizer` o `admin`. El `organizer` solo puede modificar sus propios eventos. 
+Requiere autenticación y rol `organizer` o `admin`. El `organizer` solo puede modificar sus propios eventos. No se puede modificar un evento cancelado. El campo `organizer` no puede cambiarse desde el body.
 
-401: sin sesión | 403: sin permisos o evento ajeno | 404: evento no encontrado
+**400:** evento cancelado o fecha pasada | **401:** sin sesión | **403:** sin permisos o evento ajeno | **404:** evento no encontrado
+
+--
+
+## Cambiar estado - `PATCH /api/events/:id/status`
+
+Requiere autenticación y rol `organizer` o `admin`.
+
+**Body**
+```json
+{ "status": "published" }
+```
+
+**Estados válidos**: `draft`, `published`, `cancelled`, `finished`
+
+**Reglas de negocio:**
+- Un evento `cancelled` no puede cambiar de estado
+- Un evento `finished` no puede publicarse nuevamente
+
+**200 OK:** evento con estado actualizado | **400:** estado inválido o transición no permitida | **403:** evento ajeno
+
+--
 
 ## Cancelar evento - `DELETE /api/events/:id`
 
-Requiere autenticación y rol `organizer` o `admin`. El `organizer` solo puede cancelar sus propios eventos. 
+Requiere autenticación y rol `organizer` o `admin`. El `organizer` solo puede cancelar sus propios eventos. No elimina el evento físicamente - cambia su `status` a `'cancelled'`.
 
-401: sin sesión | 403: sin permisos o evento ajeno | 404: evento no encontrado
+**200 OK:**
+```json
+{ "status": "success", "message": "Evento cancelado correctamente." }
+```
+
+**403:** sin permisos o evento ajeno | **404:** evento no encontrado
+
+--
 
 ## Ver todos los usuarios - `GET /api/events/admin/users`
 
 Ruta administrativa. Solo accesible por `admin`. Devuelve todos los usuarios sin incluir `password`.
 
-** 200 OK ** 
+**200 OK:** 
 
 {
   "status": "success",
   "payload": [...]
 }
 
-401: sin sesión | 403: rol insuficiente
+**401:** sin sesión | **403:** rol insuficiente
+
+--
+
+## Reglas de negocio
+
+Todas las validaciones viven en la capa `services`, nunca en rutas ni controllers.
+
+Regla                                                 | Error 
+Fecha del evento en el pasado                         | 400
+`capacity` igual a 0 o negativo                       | 400
+`price` negativo                                      | 400
+`title`, `description`, `category`, `location` vacíos | 400
+Modificar evento cancelado                            | 400
+Publicar evento finalizado                            | 400
+Estado inválido en PATCH                              | 400
+`organizer` en body ignorado en POST y PUT            | -
+Eventos nunca eliminados físicamente                  | -
+
+--
 
 ## Flujo completo de prueba
 
-1. POST /api/sessions/register          → 201, usuario creado (role: 'user')
-2. POST /api/sessions/login             → 200, cookie currentUser seteada
-3. GET  /api/sessions/current           → 200, devuelve { id, first_name, last_name, email, role }
-4. POST /api/events                     → 403, user no puede crear eventos
-5. (cambiar role a 'organizer' en Atlas)
-6. POST /api/sessions/login             → 200, nueva cookie con role: organizer
-7. POST /api/events                     → 201, evento creado
-8. PUT  /api/events/:id (evento propio) → 200, evento modificado
-9. GET  /api/events/admin/users         → 403, organizer no puede ver usuarios
-10. POST /api/sessions/logout           → 200, cookie eliminada
-11. GET  /api/sessions/current          → 401, "No autenticado."
+1. POST /api/sessions/register              → 201, role: 'user'
+2. POST /api/sessions/login                 → 200, cookie seteada
+3. POST /api/events                         → 403, user no puede crear
+4. (cambiar role a 'organizer' en Atlas)
+5. POST /api/sessions/login                 → 200, nueva cookie
+6. POST /api/events                         → 201, evento creado (status: published)
+7. PATCH /api/events/:id/status             → 200, status: published
+8. PUT  /api/events/:id (evento propio)     → 200, evento modificado
+9. PUT  /api/events/:id (evento ajeno)      → 403
+10. DELETE /api/events/:id                  → 200, status: cancelled
+11. PATCH /api/events/:id/status            → 400, no se puede modificar evento cancelado
+12. GET /api/events?status=published&page=1 → 200, con paginación
+13. POST /api/sessions/logout               → 200, cookie eliminada
+14. GET /api/sessions/current               → 401
+
 
 ## Casos validados
 
-1. Registro exitoso → 201
-2. Campos faltantes en registro → 400
-3. Email con formato inválido → 400
-4. Email ya registrado → 409
-5. Contraseña hasheada en MongoDB, nunca en texto plano
-6. Respuesta de registro sin password
-7. Login exitoso → cookie con JWT
-8. Login con email inexistente → 401, mensaje genérico
-9. Login con contraseña incorrecta → 401, mismo mensaje genérico
-10. GET /current sin cookie → 401
-11. GET /current con token manipulado → 401
-12. POST /api/events con rol user → 403
-13. POST /api/events con rol organizer → 201
-14. GET /api/events/admin/users con rol organizer → 403
-15. GET /api/events/admin/users con rol admin → 200
-16. organizer modificando evento ajeno → 403
-17. Flujo completo: registro → login → current → logout → current devuelve 401
+1. Crear evento con rol `user` -> `403`
+2. Crear evento fecha pasada `user` -> `400`
+3. Crear evento con `capacity: 0` -> `400`
+4. Crear evento con `price` negativo -> `400`
+5. `organizer` modifica envento propio -> `200`
+6. `organizer` modifica envento ajeno -> `403`
+7. `admin` modifica envento de otro organizer -> `400`
+8. Cambiar estado de evento cancelado -> `400`
+9. Publicar evento finalizado -> `400`
+10. Listar con filtros `?status=published&category=workshop&page=2&limit=5`-> `200`
+11. Consultar evento inexistente -> `404`
+12. Registro exitoso → `201`
+13. Login con credenciales inválidas -> `401`, mensaje genérico
+14. `GET /current` sin cookie -> `401`
+15. Flujo completo: registro -> login -> current -> logout -> current devuelve `401`
+
+--
 
 ## Arquitectura
 
@@ -470,19 +567,19 @@ El flujo de la lógica sigue el patrón en capas:
 \`\`\`
 ruta → middleware (auth + authorize + isEventOwnerOrAdmin)
      → passport.config (estrategia)
-     → controller (HTTP)
-     → service (lógica de negocio)
+     → controller (solo HTTP)
+     → service (lógica de negocio + validaciones)
      → repository
      → dao
      → modelo (Mongoose)
 \`\`\`
 
-- `passport.config.js`: estrategias register, login y current. No genera JWT — eso le corresponde al controller.
-- `auth.middleware.js`: valida JWT desde cookie → 401 si no hay sesión.
-- `authorize.middleware.js`: valida rol → 403 si no tiene permisos.
-- `event.middleware.js`: valida propiedad del evento → 403 si es ajeno.
-- `dto/current-user.dto.js`: garantiza que password nunca aparece en respuestas.
-- `utils/hash.js`: hash y comparación de contraseñas con bcrypt.
+- `passport.config.js`: estrategias `register`, `login` y `current`. No genera JWT.
+- `auth.middleware.js`: valida JWT → `401` si no hay sesión.
+- `authorize.middleware.js`: valida rol → `403` si no tiene permisos.
+- `event.middleware.js`: valida propiedad del evento → `403` si es ajeno.
+- `dto/current-user.dto.js`: garantiza que `password` nunca aparece en respuestas.
+- `utils/hash.js`: hash y comparación de contraseñas con `bcrypt`.
 - `utils/jwt.js`: generación y verificación de tokens JWT.
 
 ## Preparación para futuras estrategias
@@ -494,12 +591,17 @@ El sistema queda preparado para incorporar providers externos como Google, GitHu
 ## Seguridad
 
 - Las contraseñas se hashean con `bcrypt` antes de guardarse — nunca se almacena texto plano.
-- El campo `role` no puede modificarse desde el body del registro — siempre se asigna `'user'`.
-- El JWT solo contiene `{ id, email, role }` — nunca la contraseña.
-- La cookie `currentUser` es `httpOnly`, no accesible desde JavaScript del cliente (protección contra XSS).
-- Los mensajes de error de login son genéricos (`"Credenciales inválidas."`) para no revelar si el email existe o no.
+- `role` siempre `'user'` en registro - no manipulable desde el body.
+- `organizer` siempre asignado desde `req.user` - no manipulable desde el body.
+- JWT solo contiene `{ id, email, role }` — nunca la contraseña.
+- Cookie `httpOnly` - protección contra XSS.
+- Mensajes de error de login genéricos (`"Credenciales inválidas."`) para no revelar si el email existe o no.
 - `JWT_SECRET` se carga desde variables de entorno, nunca hardcodeado en el código.
 - `CurrentUserDTO` garantiza por diseño que `password` nunca aparece en ninguna respuesta.
+- Usuarios devueltos por `/admin/users` excluyen el campo `password`.
+- Eventos nunca eliminados físicamente - se cancelan cambiando el estado.
+
+--
 
 ## Calidad de código y testing
 
