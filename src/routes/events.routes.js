@@ -1,12 +1,23 @@
 import { Router } from 'express'
-import { getEvents, createEventHandler, updateEventHandler, deleteEventHandler, getAllUsers } from '../controllers/event.controller.js'
+import { 
+    getEvents, 
+    getEventByIdHandler,
+    createEventHandler, 
+    updateEventHandler,
+    updateEventStatusHandler, 
+    deleteEventHandler, 
+    getAllUsers 
+} from '../controllers/event.controller.js'
 import passport from 'passport'
 import { authorize } from '../middlewares/authorize.middleware.js'
 import { isEventOwnerOrAdmin } from '../middlewares/event.middleware.js'
 
 const router = Router()
 
+const passportAuth = passport.authenticate('current', { session: false })
+
 router.get('/', getEvents)
+router.get('/:id', getEventByIdHandler)
 
 router.post(
     '/',
@@ -19,19 +30,22 @@ router.post(
 
 router.put(
     '/:id', 
-    passport.authenticate('current', {
-        session: false
-    }),
+    passportAuth,
     authorize('admin', 'organizer'),
     isEventOwnerOrAdmin,
     updateEventHandler
 )
 
+router.patch(
+    '/:id/status',
+    passportAuth,
+    authorize('admin', 'organizer'),
+    updateEventStatusHandler
+)
+
 router.delete(
     '/:id', 
-    passport.authenticate('current', {
-        session: false
-    }),
+    passportAuth,
     authorize('admin', 'organizer'),
     isEventOwnerOrAdmin,
     deleteEventHandler
@@ -39,9 +53,7 @@ router.delete(
 
 router.get(
     '/admin/users', 
-    passport.authenticate('current', {
-        session: false
-    }),
+    passportAuth,
     authorize('admin'),
     getAllUsers
 )

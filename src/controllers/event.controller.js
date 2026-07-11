@@ -1,14 +1,27 @@
-import { getAllEvents, createEvent, updateEvent, deleteEvent } from '../services/event.services.js'
+import { 
+  getAllEvents,
+  getEventById, 
+  createEvent, 
+  updateEvent,
+  updateEventStatus, 
+  deleteEvent 
+} from '../services/event.services.js'
 import SessionDAO from '../dao/session.dao.js'
 const sessionDAO = new SessionDAO()
 
 export const getEvents = async (req, res) => {
   try {
-    const { category, status, location } = req.query
-    const filter = {}
-    if(category) filter.category = category 
-    const events = await getAllEvents()
-    res.status(200).json({ status: 'success', payload: events })
+    const result = await getAllEvents(req.query)
+    res.status(200).json({ status: 'success', ...result })
+  } catch (error) {
+    res.status(error.status || 500).json({ status: 'error', message: error.message })
+  }
+}
+
+export const getEventByIdHandler = async (req, res) => {
+  try {
+    const event = await getEventById(req.params.id)
+    res.status(200).json({ status: 'success', payload: event })
   } catch (error) {
     res.status(error.status || 500).json({ status: 'error', message: error.message })
   }
@@ -26,6 +39,16 @@ export const createEventHandler = async (req, res) => {
 export const updateEventHandler = async (req, res) => {
   try {
     const event = await updateEvent(req.params.id, req.body, req.user)
+    res.status(200).json({ status: 'success', payload: event })
+  } catch (error) {
+    res.status(error.status || 500).json({ status: 'error', message: error.message })
+  }
+}
+
+export const updateEventStatusHandler = async (req, res) => {
+  try {
+    const { status } = req.body
+    const event = await updateEventStatus(req.params.id, status, req.user)
     res.status(200).json({ status: 'success', payload: event })
   } catch (error) {
     res.status(error.status || 500).json({ status: 'error', message: error.message })
