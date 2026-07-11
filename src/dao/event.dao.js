@@ -1,7 +1,7 @@
 import Event from '../models/event.model.js'
 
 export default class EventDAO {
-  async getAll({ filter = {}, page = 1, limit = 10, sort = 'date' }){
+  async getAll({ filter = {}, page = 1, limit = 10, sort = 'date' } = {}){
     const skip = (page - 1) * limit 
 
     const [data, total] = await Promise.all([

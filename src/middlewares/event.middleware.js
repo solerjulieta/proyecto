@@ -14,7 +14,7 @@ export const isEventOwnerOrAdmin = async (req, res, next) =>
     }
 
     const isAdmin = req.user.role === 'admin'
-    const isOwner = event.organizer.toString() === req.user.id.toString()
+    const isOwner = event.organizer.toString() === req.user.id
 
     if(!isAdmin && !isOwner){
         return res.status(403).json({

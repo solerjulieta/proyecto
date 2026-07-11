@@ -70,7 +70,7 @@ export const updateEvent = async (id, data, user) => {
   }
 
   //Organizer solo puede modificar sus propios eventos
-  if(user.role === 'organizer' && event.organizer.toString() !== user.id){
+  if(user.role === 'organizer' && event.organizer._id.toString() !== user.id){
     throw { status: 403, message: 'No tenés permiso para modificar este evento.' }
   }
 
@@ -119,7 +119,7 @@ export const deleteEvent = async (id, user) => {
     throw { status: 404, message: 'Evento no encotrado.' }
   }
 
-  if(user.role === 'organizer' && event.organizer.toString() !== user.id){
+  if(user.role === 'organizer' && event.organizer._id.toString() !== user.id){
     throw { status: 403, message: 'No tenés permiso para cancelar este evento.' }
   }
 
