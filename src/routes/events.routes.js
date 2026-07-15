@@ -5,8 +5,7 @@ import {
     createEventHandler, 
     updateEventHandler,
     updateEventStatusHandler, 
-    deleteEventHandler, 
-    getAllUsers 
+    deleteEventHandler
 } from '../controllers/event.controller.js'
 import passport from 'passport'
 import { authorize } from '../middlewares/authorize.middleware.js'
@@ -49,13 +48,6 @@ router.delete(
     authorize('admin', 'organizer'),
     isEventOwnerOrAdmin,
     deleteEventHandler
-)
-
-router.get(
-    '/admin/users', 
-    passportAuth,
-    authorize('admin'),
-    getAllUsers
 )
 
 export default router

@@ -57,8 +57,8 @@ export const createEvent = async (data, organizerId) => {
   return await eventRepository.create({ ...safeData, organizer: organizerId })
 }
 
-export const updateEvent = async (id, data, user) => {
-  const event = await eventRepository.getById(id)
+export const updateEvent = async (id, data, user, existingEvent = null) => {
+  const event = existingEvent || await eventRepository.getById(id)
 
   if(!event){
     throw { status: 404, message: 'Evento no encontrado.' }
