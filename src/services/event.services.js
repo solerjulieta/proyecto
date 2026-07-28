@@ -3,8 +3,8 @@ import EventRepository from '../repositories/event.repository.js'
 const eventRepository = new EventRepository()
 
 //Helpers de validación
-const validateEventData = ({ title, description, category, date, location, capacity, price }) => {
-  if(!title || !description || !category || !location){
+const validateEventData = ({ title, description, category, date, /*location,*/ capacity, price }) => {
+  if(!title || !description || !category /*|| !location*/){
     throw { status: 400, message: 'El título, la descripción, la categoría y la ubicación son obligatorias.' }
   }
   if(!date){
@@ -23,12 +23,12 @@ const validateEventData = ({ title, description, category, date, location, capac
 
 // Servicios 
 export const getAllEvents = async (query = {}) => {
-  const { status, category, location, dateFrom, dateTo, page = 1, limit = 10, sort = 'date' } = query
+  const { status, category, /*location,*/ dateFrom, dateTo, page = 1, limit = 10, sort = 'date' } = query
 
   const filter = {}
   if (status) filter.status = status
   if (category) filter.category = { $regex: category, $options: 'i' }
-  if (location) filter.location = { $regex: location, $options: 'i' }
+  /*if (location) filter.location = { $regex: location, $options: 'i' }*/
   if (dateFrom || dateTo) {
     filter.date = {}
     if (dateFrom) filter.date.$gte = new Date(dateFrom)
