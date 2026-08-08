@@ -12,15 +12,15 @@ const router = Router()
 const passportAuth = passport.authenticate('current', { session: false })
 
 // Crear reserva a un evento
-router.post('/events/:ied/reservations', passportAuth, createReservationHandler)
+router.post('/events/:ied/tickets', passportAuth, createReservationHandler)
 
 // Mis reservas
-router.get('/my-reservations', passportAuth, getMyReservationsHandler)
+router.get('/my-tickets', passportAuth, getMyReservationsHandler)
 
 // Ver reservas de un evento
-router.get('/events/:ied/reservations', passportAuth, authorize('organizer', 'admin'), getEventReservationsHandler)
+router.get('/events/:ied/tickets', passportAuth, authorize('organizer', 'admin'), getEventReservationsHandler)
 
 // Cancelar reserva
-router.patch('/reservations/:rid/cancel', passportAuth, cancelReservationHandler)
+router.patch('/tickets/:tid/cancel', passportAuth, cancelReservationHandler)
 
 export default router

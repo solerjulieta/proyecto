@@ -26,13 +26,20 @@ export const getAllEvents = async (query = {}) => {
   const { status, category, location, dateFrom, dateTo, page = 1, limit = 10, sort = 'date' } = query
 
   const filter = {}
+
+  //Solo mostramos eventos futuros en el listado público
+  if(!dateFrom){
+    filter.date = { $gte: new Date() }
+  }
+
   if (status) filter.status = status
   if (category) filter.category = { $regex: category, $options: 'i' }
   if (location) filter.location = { $regex: location, $options: 'i' }
+
   if (dateFrom || dateTo) {
     filter.date = {}
     if (dateFrom) filter.date.$gte = new Date(dateFrom)
-      if (dateTo) filter.date.$lte = new Date(dateTo)
+    if (dateTo) filter.date.$lte = new Date(dateTo)
   }
 
   return await eventRepository.getAll({

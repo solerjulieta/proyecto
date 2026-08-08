@@ -7,7 +7,8 @@ import {
 
 export const createReservationHandler = async (req, res) => {
     try {
-        const reservation = await createReservation(req.params.ied, req.user)
+        const { quantity = 1 } = req.body
+        const reservation = await createReservation(req.params.ied, quantity, req.user)
         res.status(201).json({ status: 'success', payload: reservation })
     } catch (error) {
         res.status(error.status || 500).json({ status: 'error', message: error.message })
@@ -34,7 +35,7 @@ export const getEventReservationsHandler = async (req, res) => {
 
 export const cancelReservationHandler = async (req, res) => {
     try {
-        const reservation = await cancelReservation(req.params.rid, req.user)
+        const reservation = await cancelReservation(req.params.tid, req.user)
         res.status(200).json({ status: 'success', payload: reservation })
     } catch (error) {
         res.status(error.status || 500).json({ status: 'error', message: error.message })

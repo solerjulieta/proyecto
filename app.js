@@ -6,6 +6,7 @@ import eventsRouter from './src/routes/events.routes.js'
 import sessionsRouter from './src/routes/sessions.routes.js'
 import usersRouter from './src/routes/users.routes.js'
 import reservationsRouter from './src/routes/reservations.routes.js'
+import { errorHandler } from './src/middlewares/error.middleware.js'
 
 const app = express()
 
@@ -19,5 +20,6 @@ app.use('/api/events', eventsRouter)
 app.use('/api/sessions', sessionsRouter)
 app.use('/api/users', usersRouter)
 app.use('/api', reservationsRouter)
+app.use(errorHandler)
 
 export default app
