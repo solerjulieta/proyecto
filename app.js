@@ -18,6 +18,6 @@ app.use('/api/health', healtRouter)
 app.use('/api/events', eventsRouter)
 app.use('/api/sessions', sessionsRouter)
 app.use('/api/users', usersRouter)
-app.use('/api/reservations', reservationsRouter)
+app.use('/api', reservationsRouter)
 
 export default app

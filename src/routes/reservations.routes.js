@@ -18,7 +18,7 @@ router.post('/events/:ied/reservations', passportAuth, createReservationHandler)
 router.get('/my-reservations', passportAuth, getMyReservationsHandler)
 
 // Ver reservas de un evento
-router.get('/events/:eid/reservations', passportAuth, authorize('organizer', 'admin'), getEventReservationsHandler)
+router.get('/events/:ied/reservations', passportAuth, authorize('organizer', 'admin'), getEventReservationsHandler)
 
 // Cancelar reserva
 router.patch('/reservations/:rid/cancel', passportAuth, cancelReservationHandler)
