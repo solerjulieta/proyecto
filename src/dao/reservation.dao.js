@@ -50,6 +50,7 @@ export default class ReservationDAO {
                 }
             }
         ])
+        console.log('aggregate result:', result)
         return result[0]?.total || 0
     }
 }

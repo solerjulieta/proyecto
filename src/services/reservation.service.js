@@ -60,7 +60,7 @@ export const createReservation = async (eventId, quantity = 1, user) => {
         eventTitle: event.title,
         eventDate: event.date,
         eventLocation: event.location,
-        reservationCode: reservation.reservationCode
+        reservationCode: reservation.code
     }).catch(err => console.error('Error al enviar email:', err.message))
 
     return reservation

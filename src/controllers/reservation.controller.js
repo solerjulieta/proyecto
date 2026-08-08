@@ -7,7 +7,9 @@ import {
 
 export const createReservationHandler = async (req, res) => {
     try {
+        console.log('body recibido:', req.body)
         const { quantity = 1 } = req.body
+        console.log('quantity:', quantity)
         const reservation = await createReservation(req.params.ied, quantity, req.user)
         res.status(201).json({ status: 'success', payload: reservation })
     } catch (error) {
