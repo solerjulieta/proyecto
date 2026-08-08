@@ -1,4 +1,4 @@
-import SessionDAO from '../dao/session.dao'
+import SessionDAO from '../dao/session.dao.js'
 
 const sessionDAO = new SessionDAO()
 
