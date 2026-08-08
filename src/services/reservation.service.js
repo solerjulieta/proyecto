@@ -1,7 +1,6 @@
 import ReservationRepository from '../repositories/reservation.repository.js'
 import EventRepository from '../repositories/event.repository.js'
 import { sendReservationConfirmation } from '../utils/mailer.js'
-import { useReducer } from 'react'
 
 const reservationRepository = new ReservationRepository()
 const eventRepository = new EventRepository()
@@ -12,12 +11,12 @@ export const createReservation = async (eventId, user) => {
     if(!event) throw { status: 404, message: 'El evento no existe.' }
 
     //Verifico si el evento está publicado
-    if(event.status !== 'active'){
+    if(event.status !== 'published'){
         throw { status: 400, message: `No se puede reservar un evento con estado "${event.status}".` }
     }
 
     //El usuario solo puede reservar una vez
-    const existingReservation = await reservaationRepository.findByUserAndEvent(user.id, eventId)
+    const existingReservation = await reservationRepository.findByUserAndEvent(user.id, eventId)
     if(existingReservation){
         throw { status: 409, message: 'Ya tenés una reserva para esta clase.' }
     }
@@ -42,7 +41,7 @@ export const createReservation = async (eventId, user) => {
         eventTitle: event.title,
         eventDate: event.date,
         eventLocation: event.location,
-        reservationCode: reservation.code
+        reservationCode: reservation.reservationCode
     }).catch(err => console.error('Error al enviar email:', err.message))
 
     return reservation
@@ -69,7 +68,7 @@ export const cancelReservation = async (reservationId, user) => {
     if(!reservation) throw { status: 404, message: 'Reserva no encontrada.' }
 
     //Solo el dueño o admin puede cancelar
-    if(user.role !== 'admin' && reservation.user._id.toString !== user.id){
+    if(user.role !== 'admin' && reservation.user._id.toString() !== user.id){
         throw { status: 403, message: 'No tenés permisos para cancelar esta reserva.' }
     }
 
