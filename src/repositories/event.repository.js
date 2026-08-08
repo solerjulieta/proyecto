@@ -5,8 +5,8 @@ export default class EventRepository {
     this.dao = new EventDAO()
   }
 
-  async getAll() {
-    return this.dao.getAll()
+  async getAll(options) {
+    return this.dao.getAll(options)
   }
 
   async getById(id){
