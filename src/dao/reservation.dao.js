@@ -1,15 +1,16 @@
 import Reservation from '../models/reservation.model.js'
 
-export default class ReservationDAO{
-    async create(data){
+export default class ReservationDAO {
+
+    async create(data) {
         return await Reservation.create(data)
     }
 
-    async findById(id){
+    async findById(id) {
         return await Reservation.findById(id)
     }
 
-    async findByUserAndEvent(userId, eventId){
+    async findByUserAndEvent(userId, eventId) {
         return await Reservation.findOne({
             user: userId,
             event: eventId,
@@ -17,19 +18,26 @@ export default class ReservationDAO{
         })
     }
 
-    async findByUser(userId){
-        return await Reservation.find({ event: eventId })
-            .populate('event', 'title data location status category')
+    async findByUser(userId) {
+        return await Reservation.find({ user: userId })
+            .populate('event', 'title date location status category')
             .sort({ createdAt: -1 })
     }
 
-    async findByEvent(eventId){
+    async findByEvent(eventId) {
         return await Reservation.find({ event: eventId })
             .populate('user', 'first_name last_name email')
             .sort({ createdAt: -1 })
     }
 
-    async update(id, data){
+    async update(id, data) {
         return await Reservation.findByIdAndUpdate(id, data, { new: true })
+    }
+
+    async countActiveByEvent(eventId) {
+        return await Reservation.countDocuments({
+            event: eventId,
+            status: { $ne: 'cancelled' }
+        })
     }
 }
