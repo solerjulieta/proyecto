@@ -4,10 +4,10 @@ const eventSchema = new mongoose.Schema(
     {
       title:       { type: String, required: true, trim: true },
       description: { type: String, required: true, trim: true },
-      category:    { type: String, required: true, enum: ['boxeo', 'kickboxing', 'crossfit', 'funcional', 'yoga', 'natación'], trim: true },
+      category:    { type: String, required: true, enum: ['concierto', 'festival', 'teatro', 'standup'], trim: true },
       date:        { type: Date, required: true },
       duration:    { type: Number, required: true, min: 1 },
-      /*location:    { type: String, required: true, trim: true },*/
+      location:    { type: String, required: true, trim: true },
       capacity:    { type: Number, required: true, min: 1 },
       price:       { type: Number, default: 0, min: 0 },
       status:      { type: String, enum: ['draft', 'published', 'cancelled', 'finished'], default: 'published' },
