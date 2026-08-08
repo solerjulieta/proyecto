@@ -1,4 +1,5 @@
 import Reservation from '../models/reservation.model.js'
+import mongoose from 'mongoose'
 
 export default class ReservationDAO {
 
@@ -35,9 +36,20 @@ export default class ReservationDAO {
     }
 
     async countActiveByEvent(eventId) {
-        return await Reservation.countDocuments({
-            event: eventId,
-            status: { $ne: 'cancelled' }
-        })
+        const result = await Reservation.aggregate([
+            {
+                $match: {
+                    event: new mongoose.Types.ObjectId(eventId),
+                    status: { $ne: 'cancelled' }
+                }
+            },
+            {
+                $group: {
+                    _id: null,
+                    total: { $sum: '$quantity' }
+                }
+            }
+        ])
+        return result[0]?.total || 0
     }
 }

@@ -35,6 +35,10 @@ export const createReservation = async (eventId, quantity = 1, user) => {
     const occupiedSpots = await reservationRepository.countActiveByEvent(eventId)
     const availableSpots = event.capacity - occupiedSpots
 
+    console.log('capacity:', event.capacity)
+    console.log('occupiedSpots:', occupiedSpots)
+    console.log('availableSpots:', availableSpots)
+    
     if (availableSpots < quantity) {
         throw {
         status: 400,
